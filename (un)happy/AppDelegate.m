@@ -17,7 +17,25 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // Override point for customization after application launch.
-    return YES;
+    NSCalendar *gregCalendar = [[NSCalendar alloc]initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
+    
+    NSDateComponents *dateComponent = [gregCalendar components:NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute fromDate:[NSDate date]];
+    
+    
+    [dateComponent setWeekday:2];
+    [dateComponent setHour:11];
+    [dateComponent setMinute:44];
+    
+    
+    
+    UILocalNotification *notification = [[UILocalNotification alloc]init];
+    [notification setAlertBody:@"Are you really happy?"];
+    [notification setFireDate:[gregCalendar dateFromComponents:dateComponent]];
+    notification.repeatInterval = NSCalendarUnitWeekday;
+    [notification setTimeZone:[NSTimeZone defaultTimeZone]];
+    [[UIApplication sharedApplication] scheduleLocalNotification:notification];
+  
+      return YES;
 }
 
 - (void)applicationWillResignActive:(UIApplication *)application {
