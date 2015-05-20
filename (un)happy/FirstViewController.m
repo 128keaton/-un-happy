@@ -46,6 +46,9 @@
         
     }else{
         NSLog(@"No way Josè");
+        yesButton.enabled = true;
+        mootButton.enabled = true;
+        noButton.enabled = true;
         
     }
 
@@ -80,6 +83,9 @@
     [defaults setObject:pointsArray forKey:@"points"];       
       [self setTime];
        [defaults synchronize];
+    [[NSNotificationCenter defaultCenter]
+     postNotificationName:@"TestNotification"
+     object:self];
     
 }
 -(IBAction)addPointUnHappy:(id)sender{
@@ -91,6 +97,9 @@
       [self setTime];
     [defaults setObject:pointsArray forKey:@"points"];
     [defaults synchronize];
+    [[NSNotificationCenter defaultCenter]
+     postNotificationName:@"TestNotification"
+     object:self];
     
 }
 -(IBAction)addPointNeutral:(id)sender{
@@ -102,6 +111,9 @@
     [defaults setObject:pointsArray forKey:@"points"];
     [self setTime];
     [defaults synchronize];
+    [[NSNotificationCenter defaultCenter]
+     postNotificationName:@"Update"
+     object:self];
     
 }
 

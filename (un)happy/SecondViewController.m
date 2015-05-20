@@ -11,7 +11,7 @@
 #import <BEMSimpleLineGraph/BEMPermanentPopupView.h>
 #import <QuartzCore/QuartzCore.h>
 #import "MBProgressHUD.h"
-@interface SecondViewController () <BEMSimpleLineGraphDelegate, BEMSimpleLineGraphDataSource,UIActionSheetDelegate>
+@interface SecondViewController () <BEMSimpleLineGraphDelegate, BEMSimpleLineGraphDataSource,UIActionSheetDelegate, UIScrollViewDelegate>
 
 @property (nonatomic)NSMutableArray *pointsArray;
 @property (strong, nonatomic)UILabel *pointLabel;
@@ -22,6 +22,7 @@
 
 - (NSInteger)numberOfPointsInLineGraph:(BEMSimpleLineGraphView *)graph {
     NSLog(@"%lu", (unsigned long)[self.pointsArray count]);
+
     
     return [self.pointsArray count]; // Number of points in the graph.
 }
@@ -34,6 +35,11 @@
                             nil];
     popup.tag = 1;
     [popup showInView:[UIApplication sharedApplication].keyWindow];
+}
+-(void)viewWillDisappear:(BOOL)animated{
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setInteger:self.pointsArray.count forKey:@"count"];
+    [defaults synchronize];
 }
 - (CGFloat)lineGraph:(BEMSimpleLineGraphView *)graph valueForPointAtIndex:(NSInteger)index {
     
@@ -116,25 +122,27 @@
     
     return dateString;
 }
--(void)viewWillDisappear:(BOOL)animated{
-    NSLog(@"im melting");
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    
-    NSData* imageData = UIImagePNGRepresentation([self.graphView graphSnapshotImage]);
-    NSData* myEncodedImageData = [NSKeyedArchiver archivedDataWithRootObject:imageData];
-    
-    [defaults setObject:myEncodedImageData forKey:@"bg"];
-    [defaults synchronize];
-}
+
 - (void)viewDidLoad {
+    float width;
+    float height;
+    
     [super viewDidLoad];
     self.pointsArray = [[NSMutableArray alloc]init];
-    float width = [ [ UIScreen mainScreen ] applicationFrame ].size.width;
-    float height = [ [ UIScreen mainScreen ] applicationFrame ].size.height - 100;
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    if(![defaults floatForKey:@"width"]){
+        width = self.view.bounds.size.width;
+
+    }else{
+                 width = [defaults floatForKey:@"width"];
+    }
+    height = self.view.bounds.size.height;
+    [self configureView:width height:height];
     
-    _graphView = [[BEMSimpleLineGraphView alloc] initWithFrame:CGRectMake(0, 100, width - 20, height - 100)];
+    
+   // _graphView = [[BEMSimpleLineGraphView alloc] initWithFrame:CGRectMake(0, 20, width , height - 100)];
     _graphView.delegate = self;
-    _graphView.center = self.view.center;
+    
     _graphView.dataSource = self;
     _graphView.colorYaxisLabel = [UIColor whiteColor];
     _graphView.colorXaxisLabel = [UIColor whiteColor];
@@ -146,16 +154,18 @@
     _graphView.alwaysDisplayDots = NO;
 
     
-    [self.view addSubview:_graphView];
+    
     
     _graphView.enableBezierCurve = YES;
     _graphView.animationGraphEntranceTime = 1.0f;
     
     // Do any additional setup after loading the view, typically from a nib.
 }
+
 -(void)clearAllData{
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     [_pointsArray removeAllObjects];
+    [defaults removeObjectForKey:@"width"];
     [defaults setObject:_pointsArray forKey:@"points"];
     //Li'l hacky hacks
     [defaults setObject:[[NSDate date] dateByAddingTimeInterval: -86400.0] forKey:@"updated"];
@@ -163,20 +173,75 @@
     [_graphView reloadGraph];
     
 }
--(void)viewDidAppear:(BOOL)animated{
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    
-    NSData* imageData = UIImagePNGRepresentation([self.graphView graphSnapshotImage]);
-    NSData* myEncodedImageData = [NSKeyedArchiver archivedDataWithRootObject:imageData];
-    
-    [defaults setObject:myEncodedImageData forKey:@"bg"];
-    [defaults synchronize];
 
-  //  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    self.pointsArray = [NSMutableArray arrayWithArray:[defaults objectForKey:@"points"]];
-    self.view.userInteractionEnabled = false;
+-(void)configureView:(float)width height:(float)height{
+    [_graphView removeFromSuperview];
+    _graphView = nil;
+    _graphView = [[BEMSimpleLineGraphView alloc] initWithFrame:CGRectMake(0, 20, width , height - 150)];
+    UIScrollView *scrollView = [[UIScrollView alloc]initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, height)];
+    [scrollView removeFromSuperview];
     
-    [self.graphView reloadGraph];
+    [self.view addSubview:scrollView];
+    [scrollView setContentSize:CGSizeMake(width, height-150)];
+    [scrollView setScrollEnabled:YES];
+    self.view.userInteractionEnabled = YES;
+    [scrollView addSubview:_graphView];
+    
+    
+}
+-(id)init{
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(receiveNotification:)
+                                                 name:@"Update"
+                                               object:nil];
+    return self;
+
+}
+-(void)receiveNotification:(NSNotification *) notification{
+    if ([[notification name] isEqualToString:@"Update"]){
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+    float width;
+    float height;
+
+        if(![defaults floatForKey:@"width"]){
+            width = self.view.bounds.size.width;
+            NSLog(@"Crap, well: %f", [defaults floatForKey:@"width"]);
+        }else{
+            
+            width = [defaults floatForKey:@"width"]+100;
+            NSLog(@"added a point");
+        }
+        
+        
+        [defaults setFloat:width forKey:@"width"];
+        [defaults synchronize];
+        height = self.view.bounds.size.height;
+        [self configureView:width height:height];
+    }
+    
+}
+
+-(void)viewDidAppear:(BOOL)animated{
+    if(self.pointsArray.count < 2){
+        UIView *oopsView = [[UIView alloc]initWithFrame:self.view.frame];
+        oopsView.backgroundColor = self.view.backgroundColor;
+        UILabel *oopsLabel = [[UILabel alloc]initWithFrame:self.view.frame];
+        oopsLabel.text = @"You need to add more data";
+        oopsLabel.textColor = [UIColor whiteColor];
+        oopsLabel.textAlignment = NSTextAlignmentCenter;
+        oopsLabel.center = oopsView.center;
+         [oopsView addSubview:oopsLabel];
+        [self.view addSubview:oopsView];
+       
+    }
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+    self.pointsArray = [NSMutableArray arrayWithArray:[defaults objectForKey:@"points"]];
+
+ [self.graphView reloadGraph];
+  //  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     
 }
 -(void)actionSheet:(UIActionSheet *)popup clickedButtonAtIndex:(NSInteger)buttonIndex {
